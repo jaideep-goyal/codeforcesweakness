@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CF Weakness Heatmap Analyzer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+</head>
+
+<body>
+    <!-- ============ LOADING OVERLAY ============ -->
+    <div id="loadingOverlay" class="loading-overlay hidden">
+        <div class="loading-inner">
+            <div class="loading-spinner"></div>
+            <h2 class="loading-title">Analyzing Profile</h2>
+            <p id="loadingStep" class="loading-step">Fetching user info...</p>
+            <div class="loading-bar-track">
+                <div id="loadingBar" class="loading-bar-fill" style="width:0%"></div>
+            </div>
+            <p class="loading-fun" id="loadingFun">Did you know? Tourist has solved 4000+ problems!</p>
+        </div>
+    </div>
+
+    <!-- ============ LANDING / INPUT ============ -->
+    <section id="landing" class="landing">
+        <div class="landing-inner">
+            <div class="logo-area">
+                <svg class="logo-icon" viewBox="0 0 48 48" fill="none">
+                    <rect x="4" y="24" width="8" height="20" rx="2" fill="#FF4E50" />
+                    <rect x="16" y="16" width="8" height="28" rx="2" fill="#FC913A" />
+                    <rect x="28" y="8" width="8" height="36" rx="2" fill="#F9D423" />
+                    <rect x="40" y="2" width="4" height="42" rx="2" fill="#E1F5C4" opacity="0.5" />
+                </svg>
+                <h1>CF Weakness Analyzer</h1>
+            </div>
+            <p class="subtitle">Visual analytics for your Codeforces journey. Discover weaknesses, track progress,
+                dominate contests.</p>
+
+            <div class="feature-pills">
+                <span class="pill">🔥 Heatmaps</span>
+                <span class="pill">🏅 Badges</span>
+                <span class="pill">📈 Trends</span>
+                <span class="pill">🎯 Recommender</span>
+                <span class="pill">⚔️ Compare</span>
+                <span class="pill">🕐 Time Analysis</span>
+                <span class="pill">📝 Daily POTD</span>
+                <span class="pill">📅 Upcoming Contests</span>
+                <span class="pill">📋 Practice Sheet</span>
+            </div>
+
+            <div class="input-group">
+                <input type="text" id="handleInput" placeholder="Enter Codeforces handle" autocomplete="off" />
+                <button id="analyzeBtn" onclick="startAnalysis()">
+                    <span class="btn-text">Analyze</span>
+                    <span class="btn-loader hidden"></span>
+                </button>
+            </div>
+            <p id="errorMsg" class="error-msg hidden"></p>
+
+            <!-- Peer Comparison Toggle -->
+            <div class="compare-toggle">
+                <label class="toggle-label">
+                    <input type="checkbox" id="compareToggle" onchange="toggleCompare()" />
+                    <span class="toggle-slider"></span>
+                    <span>Compare with another user</span>
+                </label>
+                <div id="compareInputArea" class="compare-input-area hidden">
+                    <input type="text" id="compareHandleInput" placeholder="Enter opponent handle" autocomplete="off" />
+                </div>
+            </div>
+
+            <div class="sample-handles">
+                Try: <button onclick="setHandle('tourist')">tourist</button>
+                <button onclick="setHandle('jiangly')">jiangly</button>
+                <button onclick="setHandle('Benq')">Benq</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============ DASHBOARD ============ -->
+    <section id="dashboard" class="dashboard hidden">
+        <!-- Top bar -->
+        <header class="topbar">
+            <div class="topbar-left">
+                <svg class="topbar-logo" viewBox="0 0 48 48" fill="none">
+                    <rect x="4" y="24" width="8" height="20" rx="2" fill="#FF4E50" />
+                    <rect x="16" y="16" width="8" height="28" rx="2" fill="#FC913A" />
+                    <rect x="28" y="8" width="8" height="36" rx="2" fill="#F9D423" />
+                </svg>
+                <span class="topbar-title">CF Weakness Analyzer</span>
+            </div>
+
+            <!-- CF-style top navigation links -->
+            <nav class="topbar-nav">
+                <a href="#" class="topbar-link active" data-tab="overview"
+                    onclick="switchTab('overview');return false;">Overview</a>
+                <a href="#" class="topbar-link" data-tab="analysis"
+                    onclick="switchTab('analysis');return false;">Analysis</a>
+                <a href="#" class="topbar-link" data-tab="timeline"
+                    onclick="switchTab('timeline');return false;">Timeline</a>
+                <a href="#" class="topbar-link" data-tab="contests"
+                    onclick="switchTab('contests');return false;">Contests</a>
+                <a href="#" class="topbar-link" data-tab="badges" onclick="switchTab('badges');return false;">Badges</a>
+                <a href="#" class="topbar-link" data-tab="recommend"
+                    onclick="switchTab('recommend');return false;">Recommender</a>
+                <a href="#" class="topbar-link" data-tab="upcoming"
+                    onclick="switchTab('upcoming');return false;">Upcoming</a>
+                <a href="#" class="topbar-link" data-tab="sheet" onclick="switchTab('sheet');return false;">Sheet</a>
+                <a href="#" class="topbar-link" data-tab="insights"
+                    onclick="switchTab('insights');return false;">Insights</a>
+            </nav>
+
+            <div class="topbar-right">
+                <span id="userHandle" class="user-handle"></span>
+                <button class="btn-theme" id="themeToggle" onclick="toggleTheme()" title="Toggle theme">🌙</button>
+                <button class="btn-outline" onclick="backToLanding()">New Search</button>
+            </div>
+        </header>
+
+        <!-- ═══════ CF-STYLE LAYOUT: MAIN + SIDEBAR ═══════ -->
+        <div class="cf-layout">
+
+            <!-- ═══════ MAIN CONTENT AREA (left) ═══════ -->
+            <main class="cf-main">
+
+                <!-- Secondary nav (like CF's MAIN | PROBLEMS | SUBMIT etc) -->
+                <nav class="sub-nav" id="tabNav">
+                    <button class="sub-nav-btn active" data-tab="overview" onclick="switchTab('overview')">📊
+                        Overview</button>
+                    <button class="sub-nav-btn" data-tab="analysis" onclick="switchTab('analysis')">🔬 Analysis</button>
+                    <button class="sub-nav-btn" data-tab="timeline" onclick="switchTab('timeline')">📈 Timeline</button>
+                    <button class="sub-nav-btn" data-tab="contests" onclick="switchTab('contests')">🏆 Contests</button>
+                    <button class="sub-nav-btn" data-tab="badges" onclick="switchTab('badges')">🏅 Badges</button>
+                    <button class="sub-nav-btn" data-tab="recommend" onclick="switchTab('recommend')">🎯
+                        Recommender</button>
+                    <button class="sub-nav-btn" data-tab="upcoming" onclick="switchTab('upcoming')">📅 Upcoming</button>
+                    <button class="sub-nav-btn" data-tab="sheet" onclick="switchTab('sheet')">📋 Sheet</button>
+                    <button class="sub-nav-btn" data-tab="insights" onclick="switchTab('insights')">🧠 Insights</button>
+                </nav>
+
+                <!-- ═══════ TAB: OVERVIEW ═══════ -->
+                <div class="tab-content active" id="tab-overview">
+                    <div class="grid-container">
+                        <div class="card card-full">
+                            <h3>🔥 Weakness Heatmap <span class="card-hint">Topic × Difficulty — darker = lower success
+                                    rate</span></h3>
+                            <div class="heatmap-wrapper" id="heatmapWrapper"></div>
+                            <div class="heatmap-legend" id="heatmapLegend"></div>
+                        </div>
+                        <div class="card">
+                            <h3>📊 Success Rate by Topic</h3>
+                            <canvas id="topicSuccessChart"></canvas>
+                        </div>
+                        <div class="card">
+                            <h3>❌ Wrong Submission Ratio by Topic</h3>
+                            <canvas id="wrongSubChart"></canvas>
+                        </div>
+                        <div class="card">
+                            <h3>🕸️ Skill Radar</h3>
+                            <canvas id="radarChart"></canvas>
+                        </div>
+                        <div class="card">
+                            <h3>📋 Verdict Breakdown</h3>
+                            <canvas id="verdictChart"></canvas>
+                        </div>
+                        <div class="card card-full">
+                            <h3>🎯 Weakest Areas — Detailed Breakdown</h3>
+                            <div class="table-scroll">
+                                <table id="weaknessTable" class="weakness-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Topic</th>
+                                            <th>Rating Range</th>
+                                            <th>Attempted</th>
+                                            <th>Solved</th>
+                                            <th>Success %</th>
+                                            <th>Avg Attempts</th>
+                                            <th>Verdict Pattern</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══════ TAB: ANALYSIS ═══════ -->
+                <div class="tab-content" id="tab-analysis">
+                    <div class="grid-container">
+                        <div class="card">
+                            <h3>⏱️ Average Solve Time by Topic</h3>
+                            <canvas id="solveTimeChart"></canvas>
+                        </div>
+                        <div class="card">
+                            <h3>🏆 Contest vs Practice Performance</h3>
+                            <canvas id="contestPracticeChart"></canvas>
+                        </div>
+                        <div class="card">
+                            <h3>📈 Difficulty Distribution</h3>
+                            <canvas id="difficultyChart"></canvas>
+                        </div>
+                        <div class="card">
+                            <h3>💻 Language Stats</h3>
+                            <canvas id="languageChart"></canvas>
+                        </div>
+                        <div class="card card-full">
+                            <h3>💻 Success Rate by Language</h3>
+                            <canvas id="langSuccessChart"></canvas>
+                        </div>
+                        <div class="card card-full">
+                            <h3>🕐 Time-of-Day Productivity <span class="card-hint">When you solve best — Hour ×
+                                    Day-of-week</span></h3>
+                            <div class="tod-heatmap-wrapper" id="todHeatmapWrapper"></div>
+                        </div>
+                        <div class="card card-full hidden" id="peerComparisonCard">
+                            <h3>⚔️ Peer Comparison <span class="card-hint" id="peerCompareLabel"></span></h3>
+                            <div class="peer-grid">
+                                <div class="peer-col" id="peerColA"></div>
+                                <div class="peer-col-vs">VS</div>
+                                <div class="peer-col" id="peerColB"></div>
+                            </div>
+                            <canvas id="peerRadarChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══════ TAB: TIMELINE ═══════ -->
+                <div class="tab-content" id="tab-timeline">
+                    <div class="grid-container">
+                        <div class="card card-full">
+                            <h3>📈 Rating Progress Timeline <span class="card-hint">Rating over time with contest
+                                    markers</span></h3>
+                            <canvas id="ratingTimelineChart"></canvas>
+                        </div>
+                        <div class="card card-full">
+                            <h3>📊 Difficulty Progression <span class="card-hint">How your difficulty range expanded
+                                    over time</span></h3>
+                            <canvas id="diffProgressionChart"></canvas>
+                        </div>
+                        <div class="card card-full">
+                            <h3>📅 Submission Activity Heatmap <span class="card-hint">GitHub-style — darker = more
+                                    submissions</span></h3>
+                            <div class="calendar-wrapper" id="calendarWrapper"></div>
+                            <div class="calendar-legend" id="calendarLegend"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══════ TAB: CONTESTS ═══════ -->
+                <div class="tab-content" id="tab-contests">
+                    <div class="grid-container">
+                        <div class="card card-full">
+                            <h3>🏆 Contest Performance Deep Dive <span class="card-hint">Per-contest breakdown with
+                                    rating changes</span></h3>
+                            <div class="contest-stats-strip" id="contestStatsStrip"></div>
+                            <div class="table-scroll">
+                                <table id="contestTable" class="weakness-table contest-table">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Contest Name</th>
+                                            <th>Rank</th>
+                                            <th>Old Rating</th>
+                                            <th>New Rating</th>
+                                            <th>Delta</th>
+                                            <th>Problems Solved</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="contestTableBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <h3>📊 Rating Delta Distribution</h3>
+                            <canvas id="ratingDeltaChart"></canvas>
+                        </div>
+                        <div class="card">
+                            <h3>🏅 Contest Rank Distribution</h3>
+                            <canvas id="contestRankChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══════ TAB: BADGES ═══════ -->
+                <div class="tab-content" id="tab-badges">
+                    <div class="badges-section">
+                        <div class="badges-header">
+                            <h2>🏅 Achievement Badges</h2>
+                            <p class="badges-subtitle">Unlock badges by reaching milestones in your competitive
+                                programming journey</p>
+                            <div class="badges-progress-wrap">
+                                <div class="badges-progress-track">
+                                    <div id="badgesProgressBar" class="badges-progress-fill" style="width:0%"></div>
+                                </div>
+                                <span id="badgesProgressText" class="badges-progress-text">0 / 0 Unlocked</span>
+                            </div>
+                        </div>
+                        <div class="badges-grid" id="badgesGrid"></div>
+                    </div>
+                </div>
+
+                <!-- ═══════ TAB: RECOMMEND ═══════ -->
+                <div class="tab-content" id="tab-recommend">
+                    <div class="grid-container">
+                        <div class="card card-full">
+                            <h3>🎯 Problem Recommender <span class="card-hint">Personalized problems based on your
+                                    weaknesses</span></h3>
+                            <div class="recommend-controls">
+                                <select id="recommendDifficulty" class="recommend-select">
+                                    <option value="auto">Auto (based on weaknesses)</option>
+                                    <option value="800">800</option>
+                                    <option value="900">900</option>
+                                    <option value="1000">1000</option>
+                                    <option value="1100">1100</option>
+                                    <option value="1200">1200</option>
+                                    <option value="1300">1300</option>
+                                    <option value="1400">1400</option>
+                                    <option value="1500">1500</option>
+                                    <option value="1600">1600</option>
+                                    <option value="1700">1700</option>
+                                    <option value="1800">1800</option>
+                                    <option value="1900">1900</option>
+                                    <option value="2000">2000</option>
+                                    <option value="2100">2100+</option>
+                                </select>
+                                <select id="recommendTopic" class="recommend-select">
+                                    <option value="auto">Auto (weakest topics)</option>
+                                </select>
+                                <button class="btn-recommend" onclick="refreshRecommendations()">🔄 Refresh</button>
+                            </div>
+                            <div class="recommend-grid" id="recommendGrid">
+                                <p class="recommend-placeholder">Click "Refresh" or switch to this tab to get
+                                    personalized problem recommendations.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══════ TAB: UPCOMING CONTESTS ═══════ -->
+                <div class="tab-content" id="tab-upcoming">
+                    <div class="grid-container">
+                        <div class="card card-full">
+                            <h3>📅 Upcoming Contests <span class="card-hint">Live & scheduled Codeforces contests</span>
+                            </h3>
+                            <div class="upcoming-controls">
+                                <button class="btn-recommend" onclick="refreshUpcomingContests()">🔄 Refresh</button>
+                            </div>
+                            <div id="upcomingContestsWrapper" class="upcoming-contests-wrapper">
+                                <p class="sheet-empty">⏳ Loading upcoming contests...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══════ TAB: PRACTICE SHEET ═══════ -->
+                <div class="tab-content" id="tab-sheet">
+                    <div class="grid-container">
+                        <div class="card card-full">
+                            <h3>📋 Rating × Topic Practice Sheet <span class="card-hint">Structured problems organized
+                                    by rating &amp; topic — click to solve</span></h3>
+                            <div id="practiceSheetWrapper" class="practice-sheet-wrapper">
+                                <p class="sheet-empty">⏳ Loading practice sheet...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══════ TAB: INSIGHTS ═══════ -->
+                <div class="tab-content" id="tab-insights">
+                    <div class="grid-container">
+                        <div class="card card-full">
+                            <h3>🧠 Advanced Insights</h3>
+                            <div id="insightsContainer" class="insights-container"></div>
+                        </div>
+                    </div>
+                </div>
+
+            </main>
+
+            <!-- ═══════ RIGHT SIDEBAR (like Codeforces) ═══════ -->
+            <aside class="cf-sidebar">
+
+                <!-- → Profile Card -->
+                <div class="sb-widget" id="userCard">
+                    <div class="sb-widget-title">→ Profile</div>
+                    <div class="user-card-info">
+                        <img id="userAvatar" class="user-avatar" src="" alt="" />
+                        <div>
+                            <h2 id="userName"></h2>
+                            <p id="userRank" class="user-rank"></p>
+                        </div>
+                    </div>
+                    <div class="user-stats" id="userStats"></div>
+                </div>
+
+                <!-- → KPI Stats -->
+                <div class="sb-widget">
+                    <div class="sb-widget-title">→ Quick Stats</div>
+                    <div class="sb-kpi-grid" id="kpiStrip"></div>
+                </div>
+
+                <!-- → Streaks -->
+                <div class="sb-widget" id="streakBanner">
+                    <div class="sb-widget-title">→ Streaks</div>
+                    <div class="sb-streak-grid">
+                        <div class="sb-streak-item">
+                            <span class="streak-fire">🔥</span>
+                            <div>
+                                <span class="streak-num" id="currentStreak">0</span>
+                                <span class="streak-label">Current</span>
+                            </div>
+                        </div>
+                        <div class="sb-streak-item">
+                            <span class="streak-fire">⚡</span>
+                            <div>
+                                <span class="streak-num" id="bestStreak">0</span>
+                                <span class="streak-label">Best</span>
+                            </div>
+                        </div>
+                        <div class="sb-streak-item">
+                            <span class="streak-fire">📅</span>
+                            <div>
+                                <span class="streak-num" id="activeDays">0</span>
+                                <span class="streak-label">Active Days</span>
+                            </div>
+                        </div>
+                        <div class="sb-streak-item">
+                            <span class="streak-fire">📊</span>
+                            <div>
+                                <span class="streak-num" id="totalDays">0</span>
+                                <span class="streak-label">Total Days</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- → Daily POTD -->
+                <div class="sb-widget">
+                    <div class="sb-widget-title">→ Daily Challenge</div>
+                    <div id="potdCard">
+                        <div class="potd-inner potd-loading">
+                            <div class="potd-icon">📝</div>
+                            <div class="potd-body">
+                                <h3 class="potd-title">Problem of the Day</h3>
+                                <p class="potd-subtitle">Loading your personalized daily challenge...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- → Export & Tools -->
+                <div class="sb-widget">
+                    <div class="sb-widget-title">→ Tools</div>
+                    <div class="sb-tools">
+                        <button class="sb-tool-btn" onclick="exportAsPNG()" title="Export as PNG">📸 Export PNG</button>
+                        <button class="sb-tool-btn" onclick="exportAsPDF()" title="Export as PDF">📄 Export PDF</button>
+                    </div>
+                </div>
+
+                <!-- → Quick Navigation -->
+                <div class="sb-widget">
+                    <div class="sb-widget-title">→ Navigate</div>
+                    <div class="sb-quick-nav">
+                        <a href="#" onclick="switchTab('overview');return false;" class="sb-nav-link">📊 Overview</a>
+                        <a href="#" onclick="switchTab('analysis');return false;" class="sb-nav-link">🔬 Analysis</a>
+                        <a href="#" onclick="switchTab('timeline');return false;" class="sb-nav-link">📈 Timeline</a>
+                        <a href="#" onclick="switchTab('contests');return false;" class="sb-nav-link">🏆 Contests</a>
+                        <a href="#" onclick="switchTab('badges');return false;" class="sb-nav-link">🏅 Badges</a>
+                        <a href="#" onclick="switchTab('recommend');return false;" class="sb-nav-link">🎯
+                            Recommender</a>
+                        <a href="#" onclick="switchTab('upcoming');return false;" class="sb-nav-link">📅 Upcoming</a>
+                        <a href="#" onclick="switchTab('sheet');return false;" class="sb-nav-link">📋 Practice Sheet</a>
+                        <a href="#" onclick="switchTab('insights');return false;" class="sb-nav-link">🧠 Insights</a>
+                    </div>
+                </div>
+
+            </aside>
+        </div>
+
+        <footer class="footer">
+            Built with ❤️ — Codeforces Weakness Heatmap Analyzer &copy; 2025
+        </footer>
+    </section>
+
+    <script src="api.js"></script>
+    <script src="analysis.js"></script>
+    <script src="charts.js"></script>
+    <script src="insights.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
