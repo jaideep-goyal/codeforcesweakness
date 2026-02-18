@@ -32,6 +32,13 @@ function backToLanding() {
   switchTab("overview");
 }
 
+/* ─── Go to Battle Mode directly from landing ─── */
+function goToBattleDirect() {
+  hide($("landing"));
+  show($("dashboard"));
+  switchTab("battle");
+}
+
 /* ─── Compare Toggle ─── */
 function toggleCompare() {
   const area = $("compareInputArea");
@@ -67,23 +74,7 @@ function toggleTheme() {
 
 /* ─── Tab Navigation ─── */
 function switchTab(tabId) {
-  // Update sub-nav buttons
-  document.querySelectorAll(".sub-nav-btn").forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.tab === tabId);
-  });
-  // Update topbar links
-  document.querySelectorAll(".topbar-link").forEach((link) => {
-    link.classList.toggle("active", link.dataset.tab === tabId);
-  });
-  // Update sidebar quick nav
-  document.querySelectorAll(".sb-nav-link").forEach((link) => {
-    const href = link.getAttribute("onclick") || "";
-    const match = href.match(/switchTab\('(\w+)'\)/);
-    if (match) {
-      link.classList.toggle("active", match[1] === tabId);
-    }
-  });
-  // Update legacy tab buttons (if any)
+  // Update tab buttons
   document.querySelectorAll(".tab-btn").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.tab === tabId);
   });
@@ -106,6 +97,10 @@ function switchTab(tabId) {
   // Auto-load practice sheet
   if (tabId === "sheet" && _appState.analyzed && !_appState.sheetLoaded) {
     loadPracticeSheet();
+  }
+  // Initialize battle mode
+  if (tabId === "battle") {
+    initBattle();
   }
 }
 
@@ -644,10 +639,18 @@ function renderUserCard(user, ratingHistory, kpis) {
 
   $("userName").textContent =
     `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.handle;
+
   const rankEl = $("userRank");
   const rankText = user.rank ? capitalize(user.rank) : "Unrated";
-  rankEl.textContent = `${rankText} • Rating: ${user.rating || "–"} (max: ${user.maxRating || "–"})`;
-  rankEl.style.color = rankColor(user.rank);
+  rankEl.textContent = rankText;
+  rankEl.style.background = rankColor(user.rank);
+  rankEl.style.color = "#fff";
+
+  // Profile meta (max rating)
+  const meta = $("profileMeta");
+  if (meta) {
+    meta.innerHTML = `🏆 Rating: <strong>${user.rating || "–"}</strong> &nbsp;·&nbsp; Max: <strong>${user.maxRating || "–"}</strong>`;
+  }
 
   const stats = $("userStats");
   const contestCount = ratingHistory.length;
