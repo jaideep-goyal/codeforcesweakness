@@ -43,12 +43,34 @@ function delay(ms) {
 }
 
 /**
+ * Safely parse JSON from a fetch response.
+ * If CF returns HTML (403, 503, captcha), give a clear error instead of crashing.
+ */
+async function safeJson(res) {
+  const contentType = res.headers.get("content-type") || "";
+  if (!res.ok || !contentType.includes("application/json")) {
+    if (res.status === 403)
+      throw new Error(
+        "Codeforces blocked the request (403 Forbidden). Try again in a few seconds or use a VPN.",
+      );
+    if (res.status === 503)
+      throw new Error(
+        "Codeforces is temporarily unavailable (503). Please try again later.",
+      );
+    throw new Error(
+      `Codeforces returned an unexpected response (HTTP ${res.status}). The site may be down or blocking requests — try again shortly.`,
+    );
+  }
+  return res.json();
+}
+
+/**
  * Fetch user info from Codeforces API.
  */
 async function fetchUserInfo(handle) {
   const url = buildUrl("user.info", { handles: handle });
   const res = await fetchWithTimeout(url);
-  const data = await res.json();
+  const data = await safeJson(res);
   if (data.status !== "OK") throw new Error(data.comment || "User not found");
   return data.result[0];
 }
@@ -63,7 +85,7 @@ async function fetchAllSubmissions(handle) {
     count: 100000,
   });
   const res = await fetchWithTimeout(url, 30000); // longer timeout for big users
-  const data = await res.json();
+  const data = await safeJson(res);
   if (data.status !== "OK")
     throw new Error(data.comment || "Could not fetch submissions");
   return data.result;
@@ -75,7 +97,7 @@ async function fetchAllSubmissions(handle) {
 async function fetchRatingHistory(handle) {
   const url = buildUrl("user.rating", { handle });
   const res = await fetchWithTimeout(url);
-  const data = await res.json();
+  const data = await safeJson(res);
   if (data.status !== "OK") return []; // non-fatal
   return data.result;
 }
@@ -89,7 +111,7 @@ async function fetchProblemset() {
   if (_problemsetCache) return _problemsetCache;
   const url = buildUrl("problemset.problems", {});
   const res = await fetchWithTimeout(url, 25000);
-  const data = await res.json();
+  const data = await safeJson(res);
   if (data.status !== "OK") throw new Error("Could not fetch problemset");
   _problemsetCache = data.result.problems;
   return _problemsetCache;
@@ -108,7 +130,7 @@ async function fetchContestList() {
   }
   const url = buildUrl("contest.list", {});
   const res = await fetchWithTimeout(url, 15000);
-  const data = await res.json();
+  const data = await safeJson(res);
   if (data.status !== "OK") throw new Error("Could not fetch contest list");
   // Filter: only BEFORE (upcoming) and CODING (running)
   const upcoming = data.result.filter(
