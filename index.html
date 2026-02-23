@@ -31,94 +31,155 @@
         </div>
     </div>
 
+    <!-- ============ TOAST CONTAINER ============ -->
+    <div id="toastContainer" class="toast-container"></div>
+
     <!-- ============ LANDING PAGE ============ -->
     <section id="landing" class="landing">
+        <!-- Particle Canvas Background -->
+        <canvas id="particleCanvas" class="particle-canvas"></canvas>
         <div class="landing-container">
-            <!-- Platform badge -->
-            <div class="platform-badge">
-                <span class="badge-icon">&lt;/&gt;</span> Codeforces Analytics Platform
-            </div>
+
+            <!-- Minimal top nav -->
+            <nav class="landing-nav">
+                <div class="landing-nav-brand">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="16 18 22 12 16 6" />
+                        <polyline points="8 6 2 12 8 18" />
+                    </svg>
+                    <span>CF Analytics</span>
+                </div>
+                <button id="landingThemeToggle" class="theme-btn-minimal" onclick="toggleTheme()" title="Toggle theme">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5" />
+                        <line x1="12" y1="1" x2="12" y2="3" />
+                        <line x1="12" y1="21" x2="12" y2="23" />
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                        <line x1="1" y1="12" x2="3" y2="12" />
+                        <line x1="21" y1="12" x2="23" y2="12" />
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                    </svg>
+                </button>
+            </nav>
 
             <!-- Hero -->
-            <h1 class="hero-title">
-                Find Your<br>
-                <span class="hero-gradient">Weakness</span>
-            </h1>
+            <div class="hero-section">
+                <h1 class="hero-title">
+                    Discover Your<br>
+                    <span class="hero-gradient" id="typewriterTarget">Weakness</span>
+                </h1>
 
-            <p class="hero-subtitle">
-                Analyse your Codeforces submissions, uncover weak topics, and<br>
-                battle friends in real-time coding duels.
-            </p>
+                <p class="hero-subtitle">
+                    Deep-dive into your Codeforces profile. Spot weak topics,
+                    track progress, and compete with friends.
+                </p>
 
-            <!-- Search bar -->
-            <div class="search-bar">
-                <span class="search-icon">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-                        stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="11" cy="11" r="8" />
-                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                    </svg>
-                </span>
-                <input type="text" id="handleInput" placeholder="Enter CF handle..." autocomplete="off" />
-                <button id="analyzeBtn" onclick="startAnalysis()">
-                    <span class="btn-text">Analyse &gt;</span>
-                    <span class="btn-loader hidden"></span>
-                </button>
-            </div>
-            <p id="errorMsg" class="error-msg hidden"></p>
+                <!-- Search bar -->
+                <div class="search-wrapper">
+                    <div class="search-bar">
+                        <span class="search-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="11" cy="11" r="8" />
+                                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                            </svg>
+                        </span>
+                        <input type="text" id="handleInput" placeholder="Codeforces handle" autocomplete="off"
+                            onfocus="showRecentSearches()" />
+                        <button id="analyzeBtn" onclick="startAnalysis()">
+                            <span class="btn-text">Analyze</span>
+                            <span class="btn-loader hidden"></span>
+                        </button>
+                    </div>
+                    <!-- Recent Searches Dropdown -->
+                    <div id="recentSearches" class="recent-searches hidden">
+                        <div class="recent-header">
+                            <span>Recent</span>
+                            <button onclick="clearRecentSearches()" class="recent-clear">Clear all</button>
+                        </div>
+                        <div id="recentList" class="recent-list"></div>
+                    </div>
+                </div>
+                <p id="errorMsg" class="error-msg hidden"></p>
 
-            <!-- Hidden compare inputs (functional, not visible) -->
-            <div style="display:none">
-                <input type="checkbox" id="compareToggle" />
-                <div id="compareInputArea">
-                    <input type="text" id="compareHandleInput" placeholder="Enter opponent handle" autocomplete="off" />
+                <!-- Hidden compare inputs -->
+                <div style="display:none">
+                    <input type="checkbox" id="compareToggle" />
+                    <div id="compareInputArea">
+                        <input type="text" id="compareHandleInput" placeholder="Enter opponent handle"
+                            autocomplete="off" />
+                    </div>
+                </div>
+
+                <!-- Quick picks -->
+                <div class="quick-picks">
+                    <span class="quick-picks-label">Try:</span>
+                    <button onclick="setHandle('tourist')">tourist</button>
+                    <button onclick="setHandle('jiangly')">jiangly</button>
+                    <button onclick="setHandle('Um_nik')">Um_nik</button>
                 </div>
             </div>
 
-            <!-- Sample handles -->
-            <p class="sample-text">
-                Try: <button onclick="setHandle('tourist')"><strong>tourist</strong></button>
-                <button onclick="setHandle('jiangly')"><strong>jiangly</strong></button>
-                <button onclick="setHandle('Um_nik')"><strong>Um_nik</strong></button>
-            </p>
-
-            <!-- Feature cards 2×2 -->
-            <div class="feature-grid">
-                <div class="feature-card">
-                    <div class="fc-icon fc-icon-fire">🔥</div>
-                    <div class="fc-body">
+            <!-- Features — clean horizontal strip -->
+            <div class="features-strip">
+                <div class="feature-item">
+                    <div class="feature-icon-wrap">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="3" width="7" height="7" />
+                            <rect x="14" y="3" width="7" height="7" />
+                            <rect x="14" y="14" width="7" height="7" />
+                            <rect x="3" y="14" width="7" height="7" />
+                        </svg>
+                    </div>
+                    <div>
                         <h3>Weakness Heatmap</h3>
-                        <p>Topic × Difficulty matrix. Darker = lower success rate.</p>
+                        <p>Topic vs difficulty matrix</p>
                     </div>
                 </div>
-                <div class="feature-card">
-                    <div class="fc-icon fc-icon-target">◎</div>
-                    <div class="fc-body">
-                        <h3>Weak Topic Analysis</h3>
-                        <p>Pinpoint exactly where you're losing points.</p>
+                <div class="feature-item">
+                    <div class="feature-icon-wrap">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3>Topic Analysis</h3>
+                        <p>Find where you lose points</p>
                     </div>
                 </div>
-                <div class="feature-card feature-card-battle" onclick="goToBattleDirect()">
-                    <div class="fc-icon fc-icon-battle">⚔</div>
-                    <div class="fc-body">
-                        <h3>1v1 Battle Mode</h3>
-                        <p>Challenge a friend. Same problems, same timer.</p>
+                <div class="feature-item" onclick="goToBattleDirect()" style="cursor:pointer">
+                    <div class="feature-icon-wrap feature-icon-accent">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3>1v1 Battle</h3>
+                        <p>Challenge friends live</p>
                     </div>
                 </div>
-                <div class="feature-card">
-                    <div class="fc-icon fc-icon-bolt">⚡</div>
-                    <div class="fc-body">
-                        <h3>Problem Recommender</h3>
-                        <p>Personalized problems targeting your weaknesses.</p>
+                <div class="feature-item">
+                    <div class="feature-icon-wrap">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10" />
+                            <polyline points="12 6 12 12 16 14" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3>Smart Recommender</h3>
+                        <p>Personalized problem sets</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Battle shortcut -->
-            <div class="battle-shortcut">
-                🏆 Or go straight to
-                <a href="#" onclick="goToBattleDirect();return false;">⚔ <strong>Battle Mode</strong></a>
-            </div>
         </div>
     </section>
 
@@ -127,14 +188,29 @@
 
         <!-- Simplified header -->
         <header class="dash-header">
-            <a href="#" class="back-link" onclick="backToLanding();return false;">← Back</a>
+            <a href="#" class="back-link" onclick="backToLanding();return false;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="19" y1="12" x2="5" y2="12" />
+                    <polyline points="12 19 5 12 12 5" />
+                </svg>
+                Back
+            </a>
             <div class="dash-brand">
-                <span class="brand-code">&lt;/&gt;</span>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="16 18 22 12 16 6" />
+                    <polyline points="8 6 2 12 8 18" />
+                </svg>
                 <span id="userHandle" class="dash-handle"></span>
             </div>
             <div class="dash-right">
-                <button id="themeToggle" class="theme-btn" onclick="toggleTheme()" title="Toggle theme">🌙</button>
-                <button class="btn-battle-nav" onclick="switchTab('battle')">⚔ Battle Mode</button>
+                <button id="themeToggle" class="theme-btn" onclick="toggleTheme()" title="Toggle theme">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                    </svg>
+                </button>
             </div>
         </header>
 
@@ -158,17 +234,17 @@
 
         <!-- Streak Banner -->
         <div id="streakBanner" class="streak-banner">
-            <div class="streak-item"><span class="streak-fire">🔥</span><span class="streak-num"
-                    id="currentStreak">0</span><span class="streak-label">Current Streak</span></div>
+            <div class="streak-item"><span class="streak-num" id="currentStreak">0</span><span
+                    class="streak-label">Current Streak</span></div>
             <div class="streak-divider"></div>
-            <div class="streak-item"><span class="streak-fire">⭐</span><span class="streak-num"
-                    id="bestStreak">0</span><span class="streak-label">Best Streak</span></div>
+            <div class="streak-item"><span class="streak-num" id="bestStreak">0</span><span class="streak-label">Best
+                    Streak</span></div>
             <div class="streak-divider"></div>
-            <div class="streak-item"><span class="streak-fire">📅</span><span class="streak-num"
-                    id="activeDays">0</span><span class="streak-label">Active Days</span></div>
+            <div class="streak-item"><span class="streak-num" id="activeDays">0</span><span class="streak-label">Active
+                    Days</span></div>
             <div class="streak-divider"></div>
-            <div class="streak-item"><span class="streak-fire">📆</span><span class="streak-num"
-                    id="totalDays">0</span><span class="streak-label">Total Days</span></div>
+            <div class="streak-item"><span class="streak-num" id="totalDays">0</span><span class="streak-label">Total
+                    Days</span></div>
         </div>
 
         <!-- Daily Problem of the Day -->
@@ -176,15 +252,20 @@
 
         <!-- Tab navigation -->
         <nav class="tabs" id="tabNav">
-            <button class="tab-btn active" data-tab="overview" onclick="switchTab('overview')">🔥 Heatmap</button>
-            <button class="tab-btn" data-tab="analysis" onclick="switchTab('analysis')">◎ Weak Topics</button>
-            <button class="tab-btn" data-tab="recommend" onclick="switchTab('recommend')">⚡ Recommender</button>
-            <button class="tab-btn" data-tab="timeline" onclick="switchTab('timeline')">📈 Timeline</button>
-            <button class="tab-btn" data-tab="contests" onclick="switchTab('contests')">🏆 Contests</button>
-            <button class="tab-btn" data-tab="badges" onclick="switchTab('badges')">🏅 Badges</button>
-            <button class="tab-btn" data-tab="upcoming" onclick="switchTab('upcoming')">📅 Upcoming</button>
-            <button class="tab-btn" data-tab="sheet" onclick="switchTab('sheet')">📋 Sheet</button>
-            <button class="tab-btn" data-tab="insights" onclick="switchTab('insights')">🧠 Insights</button>
+            <button class="tab-btn active" data-tab="overview" onclick="switchTab('overview')">Heatmap</button>
+            <button class="tab-btn" data-tab="analysis" onclick="switchTab('analysis')">Analysis</button>
+            <button class="tab-btn" data-tab="recommend" onclick="switchTab('recommend')">Recommender</button>
+            <button class="tab-btn" data-tab="timeline" onclick="switchTab('timeline')">Timeline</button>
+            <button class="tab-btn" data-tab="contests" onclick="switchTab('contests')">Contests</button>
+            <button class="tab-btn" data-tab="badges" onclick="switchTab('badges')">Badges</button>
+            <button class="tab-btn" data-tab="upcoming" onclick="switchTab('upcoming')">Upcoming</button>
+            <button class="tab-btn" data-tab="sheet" onclick="switchTab('sheet')">Sheet</button>
+            <button class="tab-btn" data-tab="insights" onclick="switchTab('insights')">Insights</button>
+            <button class="tab-btn" data-tab="integrity" onclick="switchTab('integrity')">Integrity</button>
+            <button class="tab-btn" data-tab="card" onclick="switchTab('card')">Share</button>
+            <button class="tab-btn" data-tab="roadmap" onclick="switchTab('roadmap')">Roadmap</button>
+            <button class="tab-btn" data-tab="leaderboard" onclick="switchTab('leaderboard')">Leaderboard</button>
+            <button class="tab-btn" data-tab="battle" onclick="switchTab('battle')">Battle</button>
         </nav>
 
         <!-- ============ TAB CONTENT AREA ============ -->
@@ -194,29 +275,29 @@
             <div class="tab-content active" id="tab-overview">
                 <div class="grid-container">
                     <div class="card card-full">
-                        <h3>🔥 Weakness Heatmap <span class="card-hint">Topic × Difficulty — darker = lower success
+                        <h3>Weakness Heatmap <span class="card-hint">Topic × Difficulty — darker = lower success
                                 rate</span></h3>
                         <div class="heatmap-wrapper" id="heatmapWrapper"></div>
                         <div class="heatmap-legend" id="heatmapLegend"></div>
                     </div>
                     <div class="card">
-                        <h3>📊 Success Rate by Topic</h3>
+                        <h3>Success Rate by Topic</h3>
                         <canvas id="topicSuccessChart"></canvas>
                     </div>
                     <div class="card">
-                        <h3>❌ Wrong Submission Ratio by Topic</h3>
+                        <h3>Wrong Submission Ratio</h3>
                         <canvas id="wrongSubChart"></canvas>
                     </div>
                     <div class="card">
-                        <h3>🕸️ Skill Radar</h3>
+                        <h3>Skill Radar</h3>
                         <canvas id="radarChart"></canvas>
                     </div>
                     <div class="card">
-                        <h3>📋 Verdict Breakdown</h3>
+                        <h3>Verdict Breakdown</h3>
                         <canvas id="verdictChart"></canvas>
                     </div>
                     <div class="card card-full">
-                        <h3>🎯 Weakest Areas — Detailed Breakdown</h3>
+                        <h3>Weakest Areas <span class="card-hint">Detailed breakdown</span></h3>
                         <div class="table-scroll">
                             <table id="weaknessTable" class="weakness-table">
                                 <thead>
@@ -241,32 +322,31 @@
             <div class="tab-content" id="tab-analysis">
                 <div class="grid-container">
                     <div class="card">
-                        <h3>⏱️ Average Solve Time by Topic</h3>
+                        <h3>Average Solve Time by Topic</h3>
                         <canvas id="solveTimeChart"></canvas>
                     </div>
                     <div class="card">
-                        <h3>🏆 Contest vs Practice Performance</h3>
+                        <h3>Contest vs Practice</h3>
                         <canvas id="contestPracticeChart"></canvas>
                     </div>
                     <div class="card">
-                        <h3>📈 Difficulty Distribution</h3>
+                        <h3>Difficulty Distribution</h3>
                         <canvas id="difficultyChart"></canvas>
                     </div>
                     <div class="card">
-                        <h3>💻 Language Stats</h3>
+                        <h3>Language Stats</h3>
                         <canvas id="languageChart"></canvas>
                     </div>
                     <div class="card card-full">
-                        <h3>💻 Success Rate by Language</h3>
+                        <h3>Success Rate by Language</h3>
                         <canvas id="langSuccessChart"></canvas>
                     </div>
                     <div class="card card-full">
-                        <h3>🕐 Time-of-Day Productivity <span class="card-hint">When you solve best — Hour ×
-                                Day-of-week</span></h3>
+                        <h3>Time-of-Day Productivity <span class="card-hint">When you solve best</span></h3>
                         <div class="tod-heatmap-wrapper" id="todHeatmapWrapper"></div>
                     </div>
                     <div class="card card-full hidden" id="peerComparisonCard">
-                        <h3>⚔️ Peer Comparison <span class="card-hint" id="peerCompareLabel"></span></h3>
+                        <h3>Peer Comparison <span class="card-hint" id="peerCompareLabel"></span></h3>
                         <div class="peer-grid">
                             <div class="peer-col" id="peerColA"></div>
                             <div class="peer-col-vs">VS</div>
@@ -281,18 +361,21 @@
             <div class="tab-content" id="tab-timeline">
                 <div class="grid-container">
                     <div class="card card-full">
-                        <h3>📈 Rating Progress Timeline <span class="card-hint">Rating over time with contest
-                                markers</span></h3>
+                        <h3>Rating Predictor <span class="card-hint">Trend-based milestone prediction</span></h3>
+                        <div id="predictionWidget">
+                            <p class="sheet-empty">Run analysis first.</p>
+                        </div>
+                    </div>
+                    <div class="card card-full">
+                        <h3>Rating Progress <span class="card-hint">Rating over time with contest markers</span></h3>
                         <canvas id="ratingTimelineChart"></canvas>
                     </div>
                     <div class="card card-full">
-                        <h3>📊 Difficulty Progression <span class="card-hint">How your difficulty range expanded
-                                over time</span></h3>
+                        <h3>Difficulty Progression <span class="card-hint">How your range expanded over time</span></h3>
                         <canvas id="diffProgressionChart"></canvas>
                     </div>
                     <div class="card card-full">
-                        <h3>📅 Submission Activity Heatmap <span class="card-hint">GitHub-style — darker = more
-                                submissions</span></h3>
+                        <h3>Activity Heatmap <span class="card-hint">GitHub-style submission calendar</span></h3>
                         <div class="calendar-wrapper" id="calendarWrapper"></div>
                         <div class="calendar-legend" id="calendarLegend"></div>
                     </div>
@@ -303,8 +386,8 @@
             <div class="tab-content" id="tab-contests">
                 <div class="grid-container">
                     <div class="card card-full">
-                        <h3>🏆 Contest Performance Deep Dive <span class="card-hint">Per-contest breakdown with
-                                rating changes</span></h3>
+                        <h3>Contest Performance <span class="card-hint">Per-contest breakdown with rating changes</span>
+                        </h3>
                         <div class="contest-stats-strip" id="contestStatsStrip"></div>
                         <div class="table-scroll">
                             <table id="contestTable" class="weakness-table contest-table">
@@ -324,11 +407,11 @@
                         </div>
                     </div>
                     <div class="card">
-                        <h3>📊 Rating Delta Distribution</h3>
+                        <h3>Rating Delta Distribution</h3>
                         <canvas id="ratingDeltaChart"></canvas>
                     </div>
                     <div class="card">
-                        <h3>🏅 Contest Rank Distribution</h3>
+                        <h3>Contest Rank Distribution</h3>
                         <canvas id="contestRankChart"></canvas>
                     </div>
                 </div>
@@ -338,7 +421,7 @@
             <div class="tab-content" id="tab-badges">
                 <div class="badges-section">
                     <div class="badges-header">
-                        <h2>🏅 Achievement Badges</h2>
+                        <h2>Achievement Badges</h2>
                         <p class="badges-subtitle">Unlock badges by reaching milestones in your competitive
                             programming journey</p>
                         <div class="badges-progress-wrap">
@@ -356,7 +439,7 @@
             <div class="tab-content" id="tab-recommend">
                 <div class="grid-container">
                     <div class="card card-full">
-                        <h3>⚡ Problem Recommender <span class="card-hint">Based on your weaknesses</span></h3>
+                        <h3>Problem Recommender <span class="card-hint">Based on your weaknesses</span></h3>
                         <div class="recommend-controls">
                             <span class="recommend-label">Target rating:</span>
                             <select id="recommendDifficulty" class="recommend-select">
@@ -394,8 +477,7 @@
             <div class="tab-content" id="tab-upcoming">
                 <div class="grid-container">
                     <div class="card card-full">
-                        <h3>📅 Upcoming Contests <span class="card-hint">Live & scheduled Codeforces
-                                contests</span></h3>
+                        <h3>Upcoming Contests <span class="card-hint">Live & scheduled Codeforces contests</span></h3>
                         <div class="upcoming-controls">
                             <button class="btn-recommend" onclick="refreshUpcomingContests()">🔄 Refresh</button>
                         </div>
@@ -410,8 +492,7 @@
             <div class="tab-content" id="tab-sheet">
                 <div class="grid-container">
                     <div class="card card-full">
-                        <h3>📋 Rating × Topic Practice Sheet <span class="card-hint">Structured problems organized
-                                by rating &amp; topic — click to solve</span></h3>
+                        <h3>Practice Sheet <span class="card-hint">Problems by rating & topic</span></h3>
                         <div id="practiceSheetWrapper" class="practice-sheet-wrapper">
                             <p class="sheet-empty">⏳ Loading practice sheet...</p>
                         </div>
@@ -419,12 +500,72 @@
                 </div>
             </div>
 
+
             <!-- ═══════ TAB: INSIGHTS ═══════ -->
             <div class="tab-content" id="tab-insights">
                 <div class="grid-container">
                     <div class="card card-full">
-                        <h3>🧠 Advanced Insights</h3>
+                        <h3>Advanced Insights</h3>
                         <div id="insightsContainer" class="insights-container"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══════ TAB: INTEGRITY CHECK ═══════ -->
+            <div class="tab-content" id="tab-integrity">
+                <div class="grid-container">
+                    <div class="card card-full">
+                        <h3>Integrity Check <span class="card-hint">SKIPPED verdicts & suspicious patterns</span></h3>
+                        <div id="integrityWrapper">
+                            <p class="sheet-empty">Run analysis first to check integrity.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══════ TAB: SHARE CARD ═══════ -->
+            <div class="tab-content" id="tab-card">
+                <div class="grid-container">
+                    <div class="card card-full">
+                        <h3>CF Wrapped Card <span class="card-hint">Shareable profile card</span></h3>
+                        <div id="skillCardWrapper">
+                            <p class="sheet-empty">Run analysis first to generate your card.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══════ TAB: ROADMAP ═══════ -->
+            <div class="tab-content" id="tab-roadmap">
+                <div class="grid-container">
+                    <div class="card card-full">
+                        <h3>7-Day Study Roadmap <span class="card-hint">Personalized plan for your weak spots</span>
+                        </h3>
+                        <div id="roadmapWrapper">
+                            <p class="sheet-empty">Run analysis first to generate your roadmap.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══════ TAB: LEADERBOARD ═══════ -->
+            <div class="tab-content" id="tab-leaderboard">
+                <div class="grid-container">
+                    <div class="card card-full">
+                        <h3>Friends Leaderboard <span class="card-hint">Compare multiple users side by side</span>
+                        </h3>
+                        <div class="leaderboard-controls">
+                            <div class="lb-add-row">
+                                <input type="text" id="lbHandleInput" class="lb-input" placeholder="Enter CF handle..."
+                                    autocomplete="off" />
+                                <button class="btn-recommend" onclick="addToLeaderboard()">➕ Add</button>
+                                <button class="btn-recommend" onclick="loadLeaderboard()">📊 Compare</button>
+                            </div>
+                            <div id="lbHandleTags" class="lb-handle-tags"></div>
+                        </div>
+                        <div id="leaderboardWrapper" class="leaderboard-wrapper">
+                            <p class="sheet-empty">Add 2+ handles above and click Compare to see the leaderboard!</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -440,7 +581,7 @@
 
 
         <footer class="footer">
-            Built with ❤️ — Codeforces Analytics Platform &copy; 2025
+            Built by CF Analytics Platform &middot; 2025
         </footer>
     </section>
 
