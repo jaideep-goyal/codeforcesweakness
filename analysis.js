@@ -1091,3 +1091,132 @@ function generatePracticeSheet(
     userRating: userRating || 1200,
   };
 }
+
+/* ═══════════════════════════════════════════════════
+   Cheat / Integrity Analysis
+   Detects SKIPPED verdicts, suspicious fast contest solves,
+   huge rating jumps, and overall integrity score.
+   ═══════════════════════════════════════════════════ */
+function buildCheatAnalysis(submissions, ratingHistory) {
+  /* ── 1. SKIPPED verdict detection ── */
+  const skippedSubs = submissions.filter((s) => s.verdict === "SKIPPED");
+
+  // Group skipped by contest
+  const skippedByContest = {};
+  for (const s of skippedSubs) {
+    const cid = s.contestId || "unknown";
+    if (!skippedByContest[cid]) {
+      skippedByContest[cid] = {
+        contestId: cid,
+        contestName: s.contestName || `Contest #${cid}`,
+        problems: [],
+        time: s.creationTimeSeconds,
+      };
+    }
+    const pKey = `${s.problem.index}. ${s.problem.name}`;
+    if (!skippedByContest[cid].problems.includes(pKey)) {
+      skippedByContest[cid].problems.push(pKey);
+    }
+  }
+  const skippedContests = Object.values(skippedByContest).sort(
+    (a, b) => b.time - a.time,
+  );
+
+  /* ── 2. Suspicious fast solves in rated contests ── */
+  // Find contest submissions where the user solved a problem in < 2 minutes
+  // and the problem rating is ≥ 1400 (non-trivial)
+  const contestSubs = submissions.filter(
+    (s) => s.author && s.author.participantType === "CONTESTANT",
+  );
+
+  // Group contest subs by contestId + problem
+  const contestProbMap = {};
+  for (const s of contestSubs) {
+    const key = `${s.contestId}-${s.problem.index}`;
+    if (!contestProbMap[key]) {
+      contestProbMap[key] = {
+        contestId: s.contestId,
+        contestName: s.contestName || `Contest #${s.contestId}`,
+        problem: `${s.problem.index}. ${s.problem.name}`,
+        rating: s.problem.rating || 0,
+        subs: [],
+      };
+    }
+    contestProbMap[key].subs.push(s);
+  }
+
+  const fastSolves = [];
+  for (const prob of Object.values(contestProbMap)) {
+    // Sort chronologically
+    prob.subs.sort((a, b) => a.creationTimeSeconds - b.creationTimeSeconds);
+    const ac = prob.subs.find((s) => s.verdict === "OK");
+    if (!ac) continue;
+    // Check relative time (seconds from contest start)
+    const relTime = ac.relativeTimeSeconds;
+    if (relTime != null && relTime < 120 && prob.rating >= 1400) {
+      fastSolves.push({
+        contestId: prob.contestId,
+        contestName: prob.contestName,
+        problem: prob.problem,
+        rating: prob.rating,
+        solveTimeSec: relTime,
+        attempts: prob.subs.length,
+      });
+    }
+  }
+
+  /* ── 3. Huge rating jumps (≥ 250 in one contest) ── */
+  const ratingJumps = [];
+  for (const r of ratingHistory) {
+    const delta = r.newRating - r.oldRating;
+    if (delta >= 250) {
+      ratingJumps.push({
+        contestId: r.contestId,
+        contestName: r.contestName,
+        oldRating: r.oldRating,
+        newRating: r.newRating,
+        delta,
+        rank: r.rank,
+        time: r.ratingUpdateTimeSeconds,
+      });
+    }
+  }
+
+  /* ── 4. Contest participation with 0 solves then big rating gain next ── */
+  // (pattern of ghost participate → cheat next round, less reliable)
+
+  /* ── 5. Overall integrity scoring ── */
+  const totalContests = ratingHistory.length;
+  const skippedCount = skippedContests.length;
+  const totalSkippedProblems = skippedSubs.length;
+
+  // Scoring: ONLY based on SKIPPED verdicts (CF plagiarism detection)
+  // Fast solves and rating jumps are just stats — NOT cheating signals
+  let score = 100;
+  // Each contest with SKIPPED = -20 (the ONLY cheating signal)
+  score -= skippedCount * 20;
+  score = Math.max(0, Math.min(100, score));
+
+  // Determine verdict — ONLY from SKIPPED verdicts
+  let verdict, verdictClass;
+  if (skippedCount > 0) {
+    verdict = "SUSPICIOUS";
+    verdictClass = "suspect";
+  } else {
+    verdict = "CLEAN";
+    verdictClass = "clean";
+  }
+
+  return {
+    score,
+    verdict,
+    verdictClass,
+    skippedContests,
+    skippedCount,
+    totalSkippedProblems,
+    fastSolves,
+    ratingJumps,
+    totalContests,
+    totalSubmissions: submissions.length,
+  };
+}
