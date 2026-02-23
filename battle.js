@@ -18,6 +18,10 @@ let _battle = {
   endTime: null,
   myScore: {},
   oppScore: {},
+  myWrongAttempts: {}, // key → count of wrong submissions during battle
+  oppWrongAttempts: {},
+  myPreSolved: [], // keys of problems solved BEFORE battle started (cheat!)
+  oppPreSolved: [],
   pollTimer: null,
   countdownTimer: null,
   timeLeft: 0,
@@ -134,7 +138,7 @@ function battleSelectProblems(problemset, settings) {
 async function battleFetchSubs(handle) {
   const url = buildUrl("user.status", { handle, from: 1, count: 50 });
   const res = await fetchWithTimeout(url, 12000);
-  const data = await res.json();
+  const data = await safeJson(res);
   return data.status === "OK" ? data.result : [];
 }
 
@@ -270,6 +274,10 @@ async function battleStart() {
     _battle.timeLeft = _battle.settings.duration * 60;
     _battle.myScore = {};
     _battle.oppScore = {};
+    _battle.myWrongAttempts = {};
+    _battle.oppWrongAttempts = {};
+    _battle.myPreSolved = [];
+    _battle.oppPreSolved = [];
 
     battleRenderActive();
 
@@ -309,7 +317,7 @@ async function battlePoll() {
     const oppSubs = await battleFetchSubs(_battle.opponentHandle);
 
     for (const prob of _battle.problems) {
-      // Check my solves
+      // ── Check my solves ──
       if (!_battle.myScore[prob.key]) {
         const solve = mySubs.find(
           (s) =>
@@ -321,7 +329,29 @@ async function battlePoll() {
         if (solve) _battle.myScore[prob.key] = solve.creationTimeSeconds;
       }
 
-      // Check opponent solves
+      // Pre-solved check (solved BEFORE battle started)
+      if (!_battle.myPreSolved.includes(prob.key)) {
+        const preSolve = mySubs.find(
+          (s) =>
+            s.problem.contestId === prob.contestId &&
+            s.problem.index === prob.index &&
+            s.verdict === "OK" &&
+            s.creationTimeSeconds < _battle.startTime - 120,
+        );
+        if (preSolve) _battle.myPreSolved.push(prob.key);
+      }
+
+      // Wrong attempts during battle
+      const myWrong = mySubs.filter(
+        (s) =>
+          s.problem.contestId === prob.contestId &&
+          s.problem.index === prob.index &&
+          s.verdict !== "OK" &&
+          s.creationTimeSeconds >= _battle.startTime - 30,
+      ).length;
+      if (myWrong > 0) _battle.myWrongAttempts[prob.key] = myWrong;
+
+      // ── Check opponent solves ──
       if (!_battle.oppScore[prob.key]) {
         const solve = oppSubs.find(
           (s) =>
@@ -332,6 +362,28 @@ async function battlePoll() {
         );
         if (solve) _battle.oppScore[prob.key] = solve.creationTimeSeconds;
       }
+
+      // Pre-solved check for opponent
+      if (!_battle.oppPreSolved.includes(prob.key)) {
+        const preSolve = oppSubs.find(
+          (s) =>
+            s.problem.contestId === prob.contestId &&
+            s.problem.index === prob.index &&
+            s.verdict === "OK" &&
+            s.creationTimeSeconds < _battle.startTime - 120,
+        );
+        if (preSolve) _battle.oppPreSolved.push(prob.key);
+      }
+
+      // Wrong attempts for opponent
+      const oppWrong = oppSubs.filter(
+        (s) =>
+          s.problem.contestId === prob.contestId &&
+          s.problem.index === prob.index &&
+          s.verdict !== "OK" &&
+          s.creationTimeSeconds >= _battle.startTime - 30,
+      ).length;
+      if (oppWrong > 0) _battle.oppWrongAttempts[prob.key] = oppWrong;
     }
 
     battleUpdateScoreboard();
@@ -392,6 +444,47 @@ function battleEnd() {
               );
               if (s) _battle.oppScore[prob.key] = s.creationTimeSeconds;
             }
+
+            // Final pre-solved checks
+            if (!_battle.myPreSolved.includes(prob.key)) {
+              const p = mySubs.find(
+                (sub) =>
+                  sub.problem.contestId === prob.contestId &&
+                  sub.problem.index === prob.index &&
+                  sub.verdict === "OK" &&
+                  sub.creationTimeSeconds < _battle.startTime - 120,
+              );
+              if (p) _battle.myPreSolved.push(prob.key);
+            }
+            if (!_battle.oppPreSolved.includes(prob.key)) {
+              const p = oppSubs.find(
+                (sub) =>
+                  sub.problem.contestId === prob.contestId &&
+                  sub.problem.index === prob.index &&
+                  sub.verdict === "OK" &&
+                  sub.creationTimeSeconds < _battle.startTime - 120,
+              );
+              if (p) _battle.oppPreSolved.push(prob.key);
+            }
+
+            // Final wrong attempt counts
+            const myW = mySubs.filter(
+              (sub) =>
+                sub.problem.contestId === prob.contestId &&
+                sub.problem.index === prob.index &&
+                sub.verdict !== "OK" &&
+                sub.creationTimeSeconds >= _battle.startTime - 30,
+            ).length;
+            if (myW > 0) _battle.myWrongAttempts[prob.key] = myW;
+
+            const oppW = oppSubs.filter(
+              (sub) =>
+                sub.problem.contestId === prob.contestId &&
+                sub.problem.index === prob.index &&
+                sub.verdict !== "OK" &&
+                sub.creationTimeSeconds >= _battle.startTime - 30,
+            ).length;
+            if (oppW > 0) _battle.oppWrongAttempts[prob.key] = oppW;
           }
           battleRenderResults();
         }),
@@ -417,6 +510,10 @@ function battleReset() {
     endTime: null,
     myScore: {},
     oppScore: {},
+    myWrongAttempts: {},
+    oppWrongAttempts: {},
+    myPreSolved: [],
+    oppPreSolved: [],
     pollTimer: null,
     countdownTimer: null,
     timeLeft: 0,
@@ -444,17 +541,46 @@ function battleUpdateScoreboard() {
     const myCell = $(`battle-my-${prob.key}`);
     const oppCell = $(`battle-opp-${prob.key}`);
 
-    if (myCell && _battle.myScore[prob.key]) {
-      const t = _battle.myScore[prob.key] - _battle.startTime;
-      const m = Math.floor(t / 60);
-      myCell.innerHTML = `<span class="battle-solved">✅ ${m}m</span>`;
-      myCell.className = "battle-cell battle-cell-solved";
+    if (myCell) {
+      if (_battle.myScore[prob.key]) {
+        const t = _battle.myScore[prob.key] - _battle.startTime;
+        const m = Math.floor(t / 60);
+        let extra = "";
+        if (_battle.myPreSolved.includes(prob.key))
+          extra = ' <span class="cheat-flag cheat-pre">🚩</span>';
+        else if (t < 90)
+          extra = ' <span class="cheat-flag cheat-fast">⚡</span>';
+        const wa = _battle.myWrongAttempts[prob.key];
+        if (wa) extra += ` <span class="cheat-wa">(${wa} WA)</span>`;
+        myCell.innerHTML = `<span class="battle-solved">✅ ${m}m</span>${extra}`;
+        myCell.className = "battle-cell battle-cell-solved";
+      } else {
+        const wa = _battle.myWrongAttempts[prob.key];
+        if (wa) {
+          myCell.innerHTML = `<span class="battle-pending">⏳</span> <span class="cheat-wa">(${wa} WA)</span>`;
+        }
+      }
     }
-    if (oppCell && _battle.oppScore[prob.key]) {
-      const t = _battle.oppScore[prob.key] - _battle.startTime;
-      const m = Math.floor(t / 60);
-      oppCell.innerHTML = `<span class="battle-solved">✅ ${m}m</span>`;
-      oppCell.className = "battle-cell battle-cell-solved";
+
+    if (oppCell) {
+      if (_battle.oppScore[prob.key]) {
+        const t = _battle.oppScore[prob.key] - _battle.startTime;
+        const m = Math.floor(t / 60);
+        let extra = "";
+        if (_battle.oppPreSolved.includes(prob.key))
+          extra = ' <span class="cheat-flag cheat-pre">🚩</span>';
+        else if (t < 90)
+          extra = ' <span class="cheat-flag cheat-fast">⚡</span>';
+        const wa = _battle.oppWrongAttempts[prob.key];
+        if (wa) extra += ` <span class="cheat-wa">(${wa} WA)</span>`;
+        oppCell.innerHTML = `<span class="battle-solved">✅ ${m}m</span>${extra}`;
+        oppCell.className = "battle-cell battle-cell-solved";
+      } else {
+        const wa = _battle.oppWrongAttempts[prob.key];
+        if (wa) {
+          oppCell.innerHTML = `<span class="battle-pending">⏳</span> <span class="cheat-wa">(${wa} WA)</span>`;
+        }
+      }
     }
   }
 
@@ -462,6 +588,25 @@ function battleUpdateScoreboard() {
   const oppTotal = $("battleOppTotal");
   if (myTotal) myTotal.textContent = Object.keys(_battle.myScore).length;
   if (oppTotal) oppTotal.textContent = Object.keys(_battle.oppScore).length;
+
+  // Live cheat alert banner
+  const myPreCount = _battle.myPreSolved.length;
+  const oppPreCount = _battle.oppPreSolved.length;
+  let alertEl = $("battleCheatAlert");
+  if (myPreCount > 0 || oppPreCount > 0) {
+    const cheater = myPreCount > 0 ? _battle.myHandle : _battle.opponentHandle;
+    const count = myPreCount > 0 ? myPreCount : oppPreCount;
+    if (!alertEl) {
+      const wrap = document.querySelector(".battle-active");
+      if (wrap) {
+        const div = document.createElement("div");
+        div.id = "battleCheatAlert";
+        div.className = "battle-cheat-alert";
+        div.innerHTML = `🚨 <strong>${cheater}</strong> had already solved ${count} problem${count > 1 ? "s" : ""} before this battle!`;
+        wrap.insertBefore(div, wrap.children[1]);
+      }
+    }
+  }
 }
 
 /* ═══════ COPY ROOM CODE ═══════ */
@@ -661,11 +806,6 @@ function battleRenderSetup() {
     const oppInput = $("battleSetupOppHandle");
     if (oppInput) oppInput.focus();
   }
-
-  // Auto-start if both handles are pre-filled
-  if (hasHandles) {
-    battleStartFromSetup();
-  }
 }
 
 /* Bridge from setup page to actual start */
@@ -848,17 +988,55 @@ function battleRenderResults() {
         ? "battle-cell-solved"
         : "battle-cell-unsolved";
 
+      // Cheat flags
+      const myPre = _battle.myPreSolved.includes(p.key);
+      const oppPre = _battle.oppPreSolved.includes(p.key);
+      const mySolveSeconds = _battle.myScore[p.key]
+        ? _battle.myScore[p.key] - _battle.startTime
+        : null;
+      const oppSolveSeconds = _battle.oppScore[p.key]
+        ? _battle.oppScore[p.key] - _battle.startTime
+        : null;
+      const myFast = mySolveSeconds !== null && mySolveSeconds < 90;
+      const oppFast = oppSolveSeconds !== null && oppSolveSeconds < 90;
+      const myWA = _battle.myWrongAttempts[p.key] || 0;
+      const oppWA = _battle.oppWrongAttempts[p.key] || 0;
+
+      // Build cell content with flags
+      let myCellContent = _battle.myScore[p.key] ? "✅ " + myTime : "❌";
+      if (myPre)
+        myCellContent +=
+          ' <span class="cheat-flag cheat-pre" title="Solved BEFORE battle!">🚩 PRE</span>';
+      else if (myFast)
+        myCellContent +=
+          ' <span class="cheat-flag cheat-fast" title="Suspiciously fast!">⚡ FAST</span>';
+      if (myWA > 0)
+        myCellContent += ` <span class="cheat-wa" title="${myWA} wrong attempts">(${myWA} WA)</span>`;
+
+      let oppCellContent = _battle.oppScore[p.key] ? "✅ " + oppTime : "❌";
+      if (oppPre)
+        oppCellContent +=
+          ' <span class="cheat-flag cheat-pre" title="Solved BEFORE battle!">🚩 PRE</span>';
+      else if (oppFast)
+        oppCellContent +=
+          ' <span class="cheat-flag cheat-fast" title="Suspiciously fast!">⚡ FAST</span>';
+      if (oppWA > 0)
+        oppCellContent += ` <span class="cheat-wa" title="${oppWA} wrong attempts">(${oppWA} WA)</span>`;
+
       return `
       <tr>
         <td class="battle-prob-id">${p.id}</td>
         <td class="battle-prob-name"><a href="${p.url}" target="_blank">${p.contestId}${p.index}. ${p.name}</a></td>
         <td class="battle-prob-rating">${p.rating}</td>
-        <td class="battle-cell ${myClass}">${_battle.myScore[p.key] ? "✅ " + myTime : "❌"}</td>
-        <td class="battle-cell ${oppClass}">${_battle.oppScore[p.key] ? "✅ " + oppTime : "❌"}</td>
+        <td class="battle-cell ${myClass}">${myCellContent}</td>
+        <td class="battle-cell ${oppClass}">${oppCellContent}</td>
       </tr>
     `;
     })
     .join("");
+
+  // ──── Build Fair Play Analysis ────
+  const fairPlayHtml = buildFairPlayAnalysis();
 
   c.innerHTML = `
     <div class="battle-results ${resultClass}">
@@ -899,6 +1077,8 @@ function battleRenderResults() {
         </table>
       </div>
 
+      ${fairPlayHtml}
+
       <div class="battle-result-actions">
         <button class="battle-btn battle-btn-primary" onclick="battleReset()">🔄 New Battle</button>
         <button class="battle-btn battle-btn-ghost" onclick="switchTab('overview')">📊 Back to Dashboard</button>
@@ -937,6 +1117,153 @@ function battleRenderResults() {
       1200,
     );
   }
+}
+
+/* ═══════ FAIR PLAY / CHEAT DETECTION ANALYSIS ═══════ */
+function buildFairPlayAnalysis() {
+  const myPre = _battle.myPreSolved.length;
+  const oppPre = _battle.oppPreSolved.length;
+  const myTotalWA = Object.values(_battle.myWrongAttempts).reduce(
+    (a, b) => a + b,
+    0,
+  );
+  const oppTotalWA = Object.values(_battle.oppWrongAttempts).reduce(
+    (a, b) => a + b,
+    0,
+  );
+
+  // Suspiciously fast solves (under 90 seconds)
+  let myFastCount = 0;
+  let oppFastCount = 0;
+  for (const prob of _battle.problems) {
+    if (_battle.myScore[prob.key]) {
+      const t = _battle.myScore[prob.key] - _battle.startTime;
+      if (t < 90 && !_battle.myPreSolved.includes(prob.key)) myFastCount++;
+    }
+    if (_battle.oppScore[prob.key]) {
+      const t = _battle.oppScore[prob.key] - _battle.startTime;
+      if (t < 90 && !_battle.oppPreSolved.includes(prob.key)) oppFastCount++;
+    }
+  }
+
+  // Skipped = problems not even attempted (no solve, no WA)
+  let mySkipped = 0;
+  let oppSkipped = 0;
+  for (const prob of _battle.problems) {
+    if (!_battle.myScore[prob.key] && !_battle.myWrongAttempts[prob.key])
+      mySkipped++;
+    if (!_battle.oppScore[prob.key] && !_battle.oppWrongAttempts[prob.key])
+      oppSkipped++;
+  }
+
+  // Build verdict for each player
+  function playerVerdict(handle, pre, fast, totalWA, skipped) {
+    const flags = [];
+    if (pre > 0)
+      flags.push({
+        icon: "🚩",
+        text: `${pre} problem${pre > 1 ? "s" : ""} already solved before battle`,
+        level: "danger",
+      });
+    if (fast > 0)
+      flags.push({
+        icon: "⚡",
+        text: `${fast} suspiciously fast solve${fast > 1 ? "s" : ""} (< 90s)`,
+        level: "warn",
+      });
+    if (totalWA > 0)
+      flags.push({
+        icon: "❌",
+        text: `${totalWA} wrong attempt${totalWA > 1 ? "s" : ""} during battle`,
+        level: "info",
+      });
+    if (skipped > 0)
+      flags.push({
+        icon: "⏭️",
+        text: `${skipped} problem${skipped > 1 ? "s" : ""} not attempted (skipped)`,
+        level: "info",
+      });
+
+    let status, statusIcon, statusClass;
+    if (pre > 0) {
+      status = "CHEATING DETECTED";
+      statusIcon = "🚨";
+      statusClass = "fp-cheater";
+    } else if (fast >= 2) {
+      status = "SUSPICIOUS";
+      statusIcon = "⚠️";
+      statusClass = "fp-suspect";
+    } else {
+      status = "FAIR PLAY ✓";
+      statusIcon = "✅";
+      statusClass = "fp-clean";
+    }
+
+    const flagsHtml =
+      flags.length > 0
+        ? flags
+            .map(
+              (f) =>
+                `<div class="fp-flag fp-flag-${f.level}"><span>${f.icon}</span> ${f.text}</div>`,
+            )
+            .join("")
+        : '<div class="fp-flag fp-flag-clean"><span>✅</span> No issues detected</div>';
+
+    return `
+      <div class="fp-player">
+        <div class="fp-player-header">
+          <span class="fp-handle">${handle}</span>
+          <span class="fp-verdict ${statusClass}">${statusIcon} ${status}</span>
+        </div>
+        <div class="fp-flags">${flagsHtml}</div>
+      </div>
+    `;
+  }
+
+  const myHtml = playerVerdict(
+    _battle.myHandle,
+    myPre,
+    myFastCount,
+    myTotalWA,
+    mySkipped,
+  );
+  const oppHtml = playerVerdict(
+    _battle.opponentHandle,
+    oppPre,
+    oppFastCount,
+    oppTotalWA,
+    oppSkipped,
+  );
+
+  // Overall verdict
+  const anyCheat = myPre > 0 || oppPre > 0;
+  const anySuspect = myFastCount >= 2 || oppFastCount >= 2;
+  let overallIcon, overallText, overallClass;
+  if (anyCheat) {
+    overallIcon = "🚨";
+    overallText =
+      "Cheating detected! Someone had already solved problems before the battle.";
+    overallClass = "fp-overall-cheat";
+  } else if (anySuspect) {
+    overallIcon = "⚠️";
+    overallText = "Some suspiciously fast solves detected. Keep an eye on it.";
+    overallClass = "fp-overall-suspect";
+  } else {
+    overallIcon = "🛡️";
+    overallText = "Both players appear to have played fair. GG!";
+    overallClass = "fp-overall-clean";
+  }
+
+  return `
+    <div class="fp-card">
+      <div class="fp-title">${overallIcon} Fair Play Analysis</div>
+      <div class="fp-overall ${overallClass}">${overallText}</div>
+      <div class="fp-grid">
+        ${myHtml}
+        ${oppHtml}
+      </div>
+    </div>
+  `;
 }
 
 /* ═══════ INIT (called when tab is first activated) ═══════ */
